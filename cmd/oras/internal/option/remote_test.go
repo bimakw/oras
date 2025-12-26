@@ -31,6 +31,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -292,6 +293,41 @@ func TestRemote_NewRepository(t *testing.T) {
 		return nil
 	}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRemote_NewRepository_InvalidReference(t *testing.T) {
+	opts := Remote{
+		plainHTTP: plainHTTPNotSpecified,
+	}
+
+	// Test with invalid reference that triggers ErrInvalidReference
+	invalidRef := "INVALID"
+	_, err := opts.NewRepository(invalidRef, Common{}, logrus.New())
+	if err == nil {
+		t.Fatal("expected error for invalid reference, got nil")
+	}
+	// Verify the error message contains the reference
+	if !bytes.Contains([]byte(err.Error()), []byte(invalidRef)) {
+		t.Errorf("error message should contain the invalid reference %q, got: %v", invalidRef, err)
+	}
+}
+
+func TestRemote_NewRepository_InvalidReferenceWrapped(t *testing.T) {
+	opts := Remote{
+		plainHTTP: plainHTTPNotSpecified,
+	}
+
+	// Test with reference containing invalid characters to trigger ErrInvalidReference
+	// An all-uppercase name is invalid per OCI spec
+	invalidRef := "localhost:5000/UPPERCASE"
+	_, err := opts.NewRepository(invalidRef, Common{}, logrus.New())
+	if err == nil {
+		t.Fatal("expected error for invalid reference, got nil")
+	}
+	// Verify the error wraps ErrInvalidReference and contains the reference
+	if !strings.Contains(err.Error(), "UPPERCASE") {
+		t.Errorf("error message should contain the invalid reference, got: %v", err)
 	}
 }
 
